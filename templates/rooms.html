@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ルーム一覧</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="center-screen">
+
+<div class="card">
+    <h2>チャットルーム一覧</h2>
+
+    <ul class="dm-list">
+        {% for r in rooms %}
+            <li>
+                {{ r }}
+                <a href="/room/{{ r }}">入る</a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <a href="/chat">メインチャットに戻る</a>
+</div>
+
+</body>
+</html>
