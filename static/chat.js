@@ -1,6 +1,9 @@
 const socket = io();
 
+// --------- 全体チャット用 ---------
 socket.on("message", (data) => {
+    if (typeof room_id !== "undefined") return; // DM画面では無視
+
     const box = document.createElement("div");
     box.classList.add("message-box");
 
@@ -13,6 +16,8 @@ socket.on("message", (data) => {
 });
 
 socket.on("image", (data) => {
+    if (typeof room_id !== "undefined") return; // DM画面では無視
+
     const box = document.createElement("div");
     box.classList.add("message-box");
 
@@ -34,17 +39,29 @@ function sendMsg() {
     document.getElementById("msg").value = "";
 }
 
-function sendImage() {
-    const fileInput = document.getElementById("imageInput");
-    const file = fileInput.files[0];
+// --------- DM用 ---------
+if (typeof room_id !== "undefined") {
+    socket.emit("join_dm", { room_id: room_id });
 
-    const formData = new FormData();
-    formData.append("image", file);
+    socket.on("dm_message", (data) => {
+        const box = document.createElement("div");
+        box.classList.add("message-box");
 
-    fetch("/upload", {
-        method: "POST",
-        body: formData
+        if (data.user === username) {
+            box.classList.add("message-self");
+        }
+
+        box.textContent = data.user + ": " + data.text;
+        document.getElementById("messages").appendChild(box);
     });
+}
 
-    fileInput.value = "";
+function sendDm() {
+    const text = document.getElementById("msg").value;
+    socket.emit("dm_message", {
+        room_id: room_id,
+        user: username,
+        text: text
+    });
+    document.getElementById("msg").value = "";
 }
