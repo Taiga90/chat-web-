@@ -37,6 +37,9 @@
     </div>
 
 </div>
+{% if sender == username and username in read_by %}
+    <span class="read-flag">既読</span>
+{% endif %}
 
 <script>
     const username = "{{ username }}";
