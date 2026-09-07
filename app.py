@@ -49,6 +49,33 @@ def init_db():
     conn.close()
 
 init_db()
+@socketio.on("read_message")
+def read_message(data):
+    message_id = data["message_id"]
+    user = data["user"]
+    room = data["room"]
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+
+    # 既読ユーザーを追加
+    c.execute("SELECT read_by FROM dm_messages WHERE id=?", (message_id,))
+    row = c.fetchone()
+
+    if row:
+        read_by = row[0] or ""
+        if user not in read_by.split(","):
+            new_read_by = read_by + "," + user if read_by else user
+            c.execute("UPDATE dm_messages SET read_by=? WHERE id=?", (new_read_by, message_id))
+            conn.commit()
+
+    conn.close()
+
+    # 相手に既読通知
+    emit("message_read", {
+        "message_id": message_id,
+        "user": user
+    }, room=room)
 
 # -------------------
 # ログイン必須
