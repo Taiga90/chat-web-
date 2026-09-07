@@ -66,3 +66,24 @@ function sendRoom() {
     });
     document.getElementById("msg").value = "";
 }
+// メッセージ受信時に既読イベント送信
+socket.on("dm_message", (data) => {
+    addMessage(data);
+
+    socket.emit("read_message", {
+        message_id: data.id,
+        user: username,
+        room: room_id
+    });
+});
+
+// 既読通知を受け取る
+socket.on("message_read", (data) => {
+    const msg = document.getElementById("msg_" + data.message_id);
+    if (msg) {
+        const read = document.createElement("span");
+        read.textContent = "既読";
+        read.classList.add("read-flag");
+        msg.appendChild(read);
+    }
+});
