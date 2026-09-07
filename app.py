@@ -16,6 +16,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
+
     c.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,6 +24,7 @@ def init_db():
             password TEXT
         )
     """)
+
     c.execute("""
         CREATE TABLE IF NOT EXISTS dm_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,6 +34,17 @@ def init_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS room_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            room TEXT,
+            sender TEXT,
+            message TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -106,7 +119,7 @@ def chat():
     return render_template("chat.html", username=session["user"])
 
 # -------------------
-# DM一覧ページ
+# DM一覧
 # -------------------
 @app.route("/dm")
 @login_required
@@ -120,7 +133,7 @@ def dm_list():
     return render_template("dm_list.html", username=current, users=users)
 
 # -------------------
-# 個別DMページ
+# DMページ
 # -------------------
 @app.route("/dm/<target>")
 @login_required
@@ -138,6 +151,32 @@ def dm(target):
                            username=current,
                            target=target,
                            room_id=room_id,
+                           messages=messages)
+
+# -------------------
+# チャットルーム一覧
+# -------------------
+@app.route("/rooms")
+@login_required
+def rooms():
+    rooms = ["general", "game", "music", "python", "random"]
+    return render_template("rooms.html", username=session["user"], rooms=rooms)
+
+# -------------------
+# チャットルームページ
+# -------------------
+@app.route("/room/<room>")
+@login_required
+def room(room):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT sender, message, timestamp FROM room_messages WHERE room=? ORDER BY id ASC", (room,))
+    messages = c.fetchall()
+    conn.close()
+
+    return render_template("room.html",
+                           username=session["user"],
+                           room=room,
                            messages=messages)
 
 # -------------------
@@ -166,12 +205,11 @@ def handle_message(data):
     emit("message", data, broadcast=True)
 
 # -------------------
-# Socket.IO（DM用）
+# Socket.IO（DM）
 # -------------------
 @socketio.on("join_dm")
 def join_dm(data):
-    room_id = data["room_id"]
-    join_room(room_id)
+    join_room(data["room_id"])
 
 @socketio.on("dm_message")
 def dm_message(data):
@@ -187,6 +225,28 @@ def dm_message(data):
     conn.close()
 
     emit("dm_message", data, room=room_id)
+
+# -------------------
+# Socket.IO（チャットルーム）
+# -------------------
+@socketio.on("join_room")
+def join_room_event(data):
+    join_room(data["room"])
+
+@socketio.on("room_message")
+def room_message(data):
+    room = data["room"]
+    sender = data["user"]
+    text = data["text"]
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("INSERT INTO room_messages(room, sender, message) VALUES (?, ?, ?)",
+              (room, sender, text))
+    conn.commit()
+    conn.close()
+
+    emit("room_message", data, room=room)
 
 # -------------------
 # 起動
