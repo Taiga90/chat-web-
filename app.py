@@ -31,6 +31,7 @@ def init_db():
             room_id TEXT,
             sender TEXT,
             message TEXT,
+            read_by TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -41,6 +42,7 @@ def init_db():
             room TEXT,
             sender TEXT,
             message TEXT,
+            read_by TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -49,33 +51,6 @@ def init_db():
     conn.close()
 
 init_db()
-@socketio.on("read_message")
-def read_message(data):
-    message_id = data["message_id"]
-    user = data["user"]
-    room = data["room"]
-
-    conn = sqlite3.connect("users.db")
-    c = conn.cursor()
-
-    # 既読ユーザーを追加
-    c.execute("SELECT read_by FROM dm_messages WHERE id=?", (message_id,))
-    row = c.fetchone()
-
-    if row:
-        read_by = row[0] or ""
-        if user not in read_by.split(","):
-            new_read_by = read_by + "," + user if read_by else user
-            c.execute("UPDATE dm_messages SET read_by=? WHERE id=?", (new_read_by, message_id))
-            conn.commit()
-
-    conn.close()
-
-    # 相手に既読通知
-    emit("message_read", {
-        "message_id": message_id,
-        "user": user
-    }, room=room)
 
 # -------------------
 # ログイン必須
@@ -170,7 +145,7 @@ def dm(target):
 
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute("SELECT sender, message, timestamp FROM dm_messages WHERE room_id=? ORDER BY id ASC", (room_id,))
+    c.execute("SELECT id, sender, message, read_by FROM dm_messages WHERE room_id=? ORDER BY id ASC", (room_id,))
     messages = c.fetchall()
     conn.close()
 
@@ -197,7 +172,7 @@ def rooms():
 def room(room):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute("SELECT sender, message, timestamp FROM room_messages WHERE room=? ORDER BY id ASC", (room,))
+    c.execute("SELECT id, sender, message, read_by FROM room_messages WHERE room=? ORDER BY id ASC", (room,))
     messages = c.fetchall()
     conn.close()
 
@@ -246,12 +221,18 @@ def dm_message(data):
 
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute("INSERT INTO dm_messages(room_id, sender, message) VALUES (?, ?, ?)",
-              (room_id, sender, text))
+    c.execute("INSERT INTO dm_messages(room_id, sender, message, read_by) VALUES (?, ?, ?, ?)",
+              (room_id, sender, text, ""))
     conn.commit()
     conn.close()
 
-    emit("dm_message", data, room=room_id)
+    # 新規メッセージを送信
+    emit("dm_message", {
+        "id": c.lastrowid,
+        "room_id": room_id,
+        "user": sender,
+        "text": text
+    }, room=room_id)
 
 # -------------------
 # Socket.IO（チャットルーム）
@@ -268,12 +249,55 @@ def room_message(data):
 
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute("INSERT INTO room_messages(room, sender, message) VALUES (?, ?, ?)",
-              (room, sender, text))
+    c.execute("INSERT INTO room_messages(room, sender, message, read_by) VALUES (?, ?, ?, ?)",
+              (room, sender, text, ""))
     conn.commit()
     conn.close()
 
-    emit("room_message", data, room=room)
+    emit("room_message", {
+        "id": c.lastrowid,
+        "room": room,
+        "user": sender,
+        "text": text
+    }, room=room)
+
+# -------------------
+# Socket.IO（既読処理）
+# -------------------
+@socketio.on("read_message")
+def read_message(data):
+    message_id = data["message_id"]
+    user = data["user"]
+    room = data["room"]
+    table = data["table"]  # "dm" or "room"
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+
+    if table == "dm":
+        c.execute("SELECT read_by FROM dm_messages WHERE id=?", (message_id,))
+    else:
+        c.execute("SELECT read_by FROM room_messages WHERE id=?", (message_id,))
+
+    row = c.fetchone()
+    read_by = row[0] or ""
+
+    if user not in read_by.split(","):
+        new_read_by = read_by + "," + user if read_by else user
+
+        if table == "dm":
+            c.execute("UPDATE dm_messages SET read_by=? WHERE id=?", (new_read_by, message_id))
+        else:
+            c.execute("UPDATE room_messages SET read_by=? WHERE id=?", (new_read_by, message_id))
+
+        conn.commit()
+
+    conn.close()
+
+    emit("message_read", {
+        "message_id": message_id,
+        "user": user
+    }, room=room)
 
 # -------------------
 # 起動
