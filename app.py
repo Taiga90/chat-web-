@@ -1,10 +1,14 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, send_from_directory
 from flask_socketio import SocketIO, emit
 import sqlite3
+import os
 
 app = Flask(__name__)
 app.secret_key = "secret"
 socketio = SocketIO(app)
+
+UPLOAD_FOLDER = "static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # -------------------
 # DB 初期化
@@ -25,7 +29,7 @@ def init_db():
 init_db()
 
 # -------------------
-# ログイン必須デコレーター
+# ログイン必須
 # -------------------
 def login_required(func):
     def wrapper(*args, **kwargs):
@@ -86,7 +90,26 @@ def chat():
     return render_template("chat.html", username=session["user"])
 
 # -------------------
-# Socket.IO
+# 画像アップロード
+# -------------------
+@app.route("/upload", methods=["POST"])
+@login_required
+def upload():
+    file = request.files["image"]
+    filename = file.filename
+    save_path = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(save_path)
+
+    # SocketIOで画像メッセージを送信
+    socketio.emit("image", {
+        "user": session["user"],
+        "url": f"/static/uploads/{filename}"
+    }, broadcast=True)
+
+    return "OK"
+
+# -------------------
+# テキストメッセージ
 # -------------------
 @socketio.on("message")
 def handle_message(data):
