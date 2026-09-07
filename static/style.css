@@ -2,6 +2,25 @@ body {
     margin: 0;
     font-family: Arial;
 }
+.message-image {
+    max-width: 250px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.message-self img {
+    max-width: 250px;
+    border-radius: 8px;
+    margin-left: auto;
+}
+
+/* スマホ対応 */
+@media (max-width: 700px) {
+    .message-image,
+    .message-self img {
+        max-width: 150px;
+    }
+}
 
 /* 中央カード（ログイン用） */
 .center-screen {
