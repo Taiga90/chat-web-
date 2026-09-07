@@ -38,6 +38,18 @@
     </div>
 
 </div>
+<div id="messages" class="messages">
+    {% for id, sender, message, read_by in messages %}
+        <div id="msg_{{ id }}" class="message-box {% if sender == username %}message-self{% endif %}">
+            <strong>{{ sender }}</strong><br>
+            {{ message }}
+
+            {% if sender == username and username in read_by %}
+                <span class="read-flag">既読</span>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
 
 <script>
     const username = "{{ username }}";
