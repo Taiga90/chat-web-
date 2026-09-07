@@ -9,13 +9,11 @@
 
 <div class="chat-container">
 
-    <!-- サイドバー -->
     <div class="sidebar">
         <h3>ユーザー</h3>
         <p>{{ username }}</p>
     </div>
 
-    <!-- チャット本体 -->
     <div class="chat-main">
         <div class="chat-header">
             <h2>メインチャット</h2>
@@ -26,11 +24,18 @@
         <div class="input-area">
             <input id="msg" type="text" placeholder="メッセージを入力">
             <button onclick="sendMsg()">送信</button>
+
+            <!-- 画像送信 -->
+            <input type="file" id="imageInput" accept="image/*" onchange="sendImage()">
         </div>
     </div>
 
 </div>
 
+<script>
+    const username = "{{ username }}";
+</script>
 <script src="/static/chat.js"></script>
+
 </body>
 </html>
