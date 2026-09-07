@@ -128,3 +128,11 @@ body {
         display: none;
     }
 }
+.dm-list {
+    list-style: none;
+    padding: 0;
+}
+
+.dm-list li {
+    margin: 8px 0;
+}
