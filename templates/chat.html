@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+
+<div class="chat-container">
+
+    <!-- サイドバー -->
+    <div class="sidebar">
+        <h3>ユーザー</h3>
+        <p>{{ username }}</p>
+    </div>
+
+    <!-- チャット本体 -->
+    <div class="chat-main">
+        <div class="chat-header">
+            <h2>メインチャット</h2>
+        </div>
+
+        <div id="messages" class="messages"></div>
+
+        <div class="input-area">
+            <input id="msg" type="text" placeholder="メッセージを入力">
+            <button onclick="sendMsg()">送信</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="/static/chat.js"></script>
+</body>
+</html>
