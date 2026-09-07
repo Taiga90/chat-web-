@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DM一覧</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="center-screen">
+
+<div class="card">
+    <h2>DM一覧</h2>
+    <p>ログイン中: {{ username }}</p>
+
+    <ul class="dm-list">
+        {% for u in users %}
+            <li>
+                {{ u }}
+                <a href="/dm/{{ u }}">DMを開く</a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <a href="/chat">メインチャットに戻る</a>
+</div>
+
+</body>
+</html>
