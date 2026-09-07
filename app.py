@@ -1,5 +1,5 @@
-from flask import Flask, render_template, request, redirect, session, send_from_directory
-from flask_socketio import SocketIO, emit
+from flask import Flask, render_template, request, redirect, session
+from flask_socketio import SocketIO, emit, join_room
 import sqlite3
 import os
 
@@ -23,6 +23,15 @@ def init_db():
             password TEXT
         )
     """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS dm_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            room_id TEXT,
+            sender TEXT,
+            message TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -38,6 +47,13 @@ def login_required(func):
         return func(*args, **kwargs)
     wrapper.__name__ = func.__name__
     return wrapper
+
+# -------------------
+# DMルームID生成
+# -------------------
+def make_dm_room(user1, user2):
+    users = sorted([user1, user2])
+    return f"dm_{users[0]}_{users[1]}"
 
 # -------------------
 # ルーティング
@@ -90,7 +106,42 @@ def chat():
     return render_template("chat.html", username=session["user"])
 
 # -------------------
-# 画像アップロード
+# DM一覧ページ
+# -------------------
+@app.route("/dm")
+@login_required
+def dm_list():
+    current = session["user"]
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT username FROM users WHERE username != ?", (current,))
+    users = [row[0] for row in c.fetchall()]
+    conn.close()
+    return render_template("dm_list.html", username=current, users=users)
+
+# -------------------
+# 個別DMページ
+# -------------------
+@app.route("/dm/<target>")
+@login_required
+def dm(target):
+    current = session["user"]
+    room_id = make_dm_room(current, target)
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT sender, message, timestamp FROM dm_messages WHERE room_id=? ORDER BY id ASC", (room_id,))
+    messages = c.fetchall()
+    conn.close()
+
+    return render_template("dm.html",
+                           username=current,
+                           target=target,
+                           room_id=room_id,
+                           messages=messages)
+
+# -------------------
+# 画像アップロード（全体チャット用）
 # -------------------
 @app.route("/upload", methods=["POST"])
 @login_required
@@ -100,7 +151,6 @@ def upload():
     save_path = os.path.join(UPLOAD_FOLDER, filename)
     file.save(save_path)
 
-    # SocketIOで画像メッセージを送信
     socketio.emit("image", {
         "user": session["user"],
         "url": f"/static/uploads/{filename}"
@@ -109,11 +159,34 @@ def upload():
     return "OK"
 
 # -------------------
-# テキストメッセージ
+# Socket.IO（全体チャット）
 # -------------------
 @socketio.on("message")
 def handle_message(data):
     emit("message", data, broadcast=True)
+
+# -------------------
+# Socket.IO（DM用）
+# -------------------
+@socketio.on("join_dm")
+def join_dm(data):
+    room_id = data["room_id"]
+    join_room(room_id)
+
+@socketio.on("dm_message")
+def dm_message(data):
+    room_id = data["room_id"]
+    sender = data["user"]
+    text = data["text"]
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("INSERT INTO dm_messages(room_id, sender, message) VALUES (?, ?, ?)",
+              (room_id, sender, text))
+    conn.commit()
+    conn.close()
+
+    emit("dm_message", data, room=room_id)
 
 # -------------------
 # 起動
