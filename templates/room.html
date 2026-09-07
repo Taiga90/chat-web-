@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Room - {{ room }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+
+<div class="chat-container">
+
+    <div class="sidebar">
+        <h3>ルーム</h3>
+        <p>{{ room }}</p>
+        <a href="/rooms">ルーム一覧に戻る</a><br>
+        <a href="/chat">メインチャット</a>
+    </div>
+
+    <div class="chat-main">
+        <div class="chat-header">
+            <h2>{{ room }} ルーム</h2>
+        </div>
+
+        <div id="messages" class="messages">
+            {% for sender, message, ts in messages %}
+                <div class="message-box {% if sender == username %}message-self{% endif %}">
+                    <strong>{{ sender }}</strong><br>
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="input-area">
+            <input id="msg" type="text" placeholder="メッセージを入力">
+            <button onclick="sendRoom()">送信</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const username = "{{ username }}";
+    const room = "{{ room }}";
+</script>
+<script src="/static/chat.js"></script>
+
+</body>
+</html>
