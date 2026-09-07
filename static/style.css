@@ -136,3 +136,8 @@ body {
 .dm-list li {
     margin: 8px 0;
 }
+.read-flag {
+    font-size: 12px;
+    color: #4a6cff;
+    margin-left: 10px;
+}
